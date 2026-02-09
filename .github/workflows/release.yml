@@ -1,0 +1,169 @@
+name: Release
+
+# Trigger: Runs when code lands on the main branch
+on:
+  push:
+    branches:
+      - main
+
+# Grant necessary permissions
+permissions:
+  contents: write
+  pull-requests: write
+
+# Prevent concurrent runs to avoid race conditions
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate PR Content
+        id: vars
+        run: |
+          # Set timezone to Shanghai for accurate timestamps
+          now=$(TZ="Asia/Shanghai" date +'%Y-%m-%d %H:%M')
+
+          # 1. Fresh, lively titles
+          titles=(
+            "🎯 Locked and Loaded: Production Awaiting @ $now"
+            "🌊 Wave Incoming: Main → Production @ $now"
+            "🔧 Code Fixed, Features Mixed @ $now"
+            "📡 Transmission Received: Prepare for Launch @ $now"
+            "🎪 The Show Must Go On (to Production) @ $now"
+            "⭐ Main Branch VIP Access: Production Entrance @ $now"
+            "🎬 Action! Moving Main to Production @ $now"
+          )
+
+          # 2. Engaging body introductions
+          intros=(
+            "**Breaking news from the main branch!** This just in: code is ready to see the world. 📰"
+            "**The main branch has spoken.** It demands to be released into the wild. 🦁"
+            "**Fresh from the development oven,** still warm and ready to serve. 🍞"
+            "**Lights, camera, production!** Your code is about to take center stage. 🎭"
+            "**Guess what?** We built something cool. Time to share it with everyone. 🎁"
+            "**Alert the masses!** New features are coming to town. 📢"
+          )
+
+          # 3. Developer wisdom/jokes
+          tips=(
+            "The best code is the code you don't have to write. 📝"
+            "Premature optimization is the root of all evil. 🌳"
+            "First rule of optimization: don't do it. Second rule: don't do it yet. 🛑"
+            "Any fool can write code that a computer can understand. Good programmers write code that humans can understand. 🧠"
+            "It works on my machine is the developer's version of the dog ate my homework. 🐕"
+            "Debugging is twice as hard as writing the code in the first place. 💪"
+            "Programs must be written for people to read, and only incidentally for machines to execute. 👁️"
+            "Make it work, make it right, make it fast. In that order. ⏱️"
+            "The only way to go fast is to go well. 🚀"
+          )
+
+          # Select random elements
+          selected_title="${titles[$RANDOM % ${#titles[@]}]}"
+          selected_intro="${intros[$RANDOM % ${#intros[@]}]}"
+          selected_tip="${tips[$RANDOM % ${#tips[@]}]}"
+
+          # Construct the PR Body
+          pr_body=$(cat <<EOF
+          ## 🤖 Auto-Generated Release Request
+
+          $selected_intro
+
+          ---
+
+          ### 🛑 PRE-DEPLOY CHECKLIST
+
+          Before merging, please verify:
+
+          - [ ] **Build passed** on this branch
+          - [ ] **Manual testing** completed for critical paths
+          - [ ] **Environment variables** are aligned between staging and production
+          - [ ] **Breaking changes** are documented and communicated
+
+          ---
+
+          ### 📦 What happens next?
+
+          Merging this PR will:
+          1. ✅ Build the frontend application
+          2. ✅ Upload to Aliyun OSS (\`${{ vars.OSS_PATH || 'fe_web_app' }}\`)
+          3. ✅ Refresh CDN cache
+
+          ---
+
+          💡 **Dev Wisdom:** $selected_tip
+          EOF
+          )
+
+          # Output variables to GitHub Actions environment
+          echo "pr_title=$selected_title" >> $GITHUB_OUTPUT
+          echo "pr_body<<MULTI_LINE_ENV" >> $GITHUB_OUTPUT
+          echo "$pr_body" >> $GITHUB_OUTPUT
+          echo "MULTI_LINE_ENV" >> $GITHUB_OUTPUT
+
+      - name: Create or update production branch
+        run: |
+          git fetch origin production
+          if git rev-parse --verify origin/production >/dev/null 2>&1; then
+            git checkout production
+          else
+            git checkout -b production
+            git push origin production
+          fi
+          git checkout main
+
+      - name: Create sync branch
+        run: |
+          git checkout -b production-sync
+          git push origin production-sync --force
+
+      - name: Create or Update Pull Request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = "production-sync";
+            const base = "production";
+
+            const title = process.env.PR_TITLE;
+            const body = process.env.PR_BODY;
+
+            const { data: pulls } = await github.rest.pulls.list({
+              owner,
+              repo,
+              head: `${owner}:${head}`,
+              base,
+              state: "open",
+            });
+
+            if (pulls.length > 0) {
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pulls[0].number,
+                title,
+                body,
+              });
+              core.info(`✅ Updated existing PR #${pulls[0].number}`);
+            } else {
+              const { data: pr } = await github.rest.pulls.create({
+                owner,
+                repo,
+                head,
+                base,
+                title,
+                body,
+              });
+              core.info(`🚀 Created new PR #${pr.number}`);
+            }
+        env:
+          PR_TITLE: ${{ steps.vars.outputs.pr_title }}
+          PR_BODY: ${{ steps.vars.outputs.pr_body }}

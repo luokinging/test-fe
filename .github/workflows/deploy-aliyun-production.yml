@@ -1,0 +1,47 @@
+name: Deploy Aliyun Production
+
+on:
+  push:
+    branches:
+      - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      OSS_PATH: fe_web_app
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build project
+        run: bun run build
+
+      - name: Setup Aliyun CLI
+        uses: ./.github/actions/setup-aliyun
+        with:
+          region: ${{ secrets.ALIYUN_REGION }}
+          access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+
+      - name: Clean OSS directory
+        run: |
+          aliyun oss rm oss://${{ secrets.ALIYUN_BUCKET_NAME }}/${{ env.OSS_PATH }}/ -r -f
+
+      - name: Upload to OSS
+        run: |
+          aliyun oss cp dist/ oss://${{ secrets.ALIYUN_BUCKET_NAME }}/${{ env.OSS_PATH }}/ -r -f
+
+      - name: Refresh CDN cache
+        run: |
+          aliyun cdn RefreshObjectCaches \
+            --ObjectPath "${{ secrets.CDN_URL }}/*" \
+            --ObjectType "File"
