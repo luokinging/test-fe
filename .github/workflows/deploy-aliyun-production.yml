@@ -10,22 +10,29 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OSS_PATH: main_frontend_web
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        # 使用官方 Action 的最新版本，支持 cache 参数
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+          # 开启缓存，这会自动缓存 ~/.bun/install/cache 并在 bun.lockb 变化时更新
+          cache: true
 
       - name: Install dependencies
+        # --frozen-lockfile 确保不会在 CI 环境下意外更改锁文件
         run: bun install --frozen-lockfile
 
       - name: Build project
         run: bun run build
 
       - name: Setup Aliyun CLI
+        # ⚠️ 注意：如果这个自定义 Action 内部有 setup-node 的 cache 报错，
+        # 请确保该 Action 内部只做 CLI 安装，不要重复做依赖缓存。
         uses: ./.github/actions/setup-aliyun
         with:
           region: ${{ secrets.ALIYUN_REGION }}
