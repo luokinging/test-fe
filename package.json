@@ -67,7 +67,12 @@
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
   },
-  "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "*"
+  "bun": {
+    "install": {
+      "supportedArchitectures": {
+        "os": ["darwin", "linux"],
+        "cpu": ["arm64", "x64"]
+      }
+    }
   }
 }
