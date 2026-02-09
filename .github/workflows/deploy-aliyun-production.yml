@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      OSS_PATH: fe_web_app
+      OSS_PATH: main_frontend_web
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

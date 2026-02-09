@@ -93,7 +93,7 @@ jobs:
 
           Merging this PR will:
           1. ✅ Build the frontend application
-          2. ✅ Upload to Aliyun OSS (\`${{ vars.OSS_PATH || 'fe_web_app' }}\`)
+          2. ✅ Upload to Aliyun OSS
           3. ✅ Refresh CDN cache
 
           ---
