@@ -25,10 +25,7 @@ jobs:
 
       - name: Install dependencies
         # --frozen-lockfile 确保不会在 CI 环境下意外更改锁文件
-        run: |
-          bun install --frozen-lockfile
-          # 如果还是报错，尝试下面这一行强制安装缺失的包
-          bun add @rollup/rollup-linux-x64-gnu
+        run: bun install --frozen-lockfile
 
       - name: Build project
         run: bun run build
