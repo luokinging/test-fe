@@ -5,16 +5,14 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { codeInspectorPlugin } from 'code-inspector-plugin';
 
-
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
-    (import.meta as any).env.DEV ? [
-      codeInspectorPlugin({
-        bundler: 'vite',
-        launchType: 'open'
-      })
-    ] : [],
+    // 仅在开发模式启用 code-inspector（CI 环境会失败）
+    mode === 'development' ? codeInspectorPlugin({
+      bundler: 'vite',
+      launchType: 'open'
+    }) : null,
     // Please make sure that '@tanstack/router-plugin' is passed before '@vitejs/plugin-react'
     tanstackRouter({
       target: 'react',
@@ -22,10 +20,10 @@ export default defineConfig({
     }),
     tailwindcss(),
     react(),
-  ],
+  ].filter(Boolean),
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-})
+}))
